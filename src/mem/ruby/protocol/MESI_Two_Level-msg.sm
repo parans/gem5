@@ -65,6 +65,7 @@ enumeration(CoherenceResponseType, desc="...") {
 // RequestMsg
 structure(RequestMsg, desc="...", interface="Message") {
   Addr addr,              desc="Physical address for this request";
+  Addr PhysicalAddress,   default="0", desc="Original byte-granular physical address";
   CoherenceRequestType Type,    desc="Type of request (GetS, GetX, PutX, etc)";
   RubyAccessMode AccessMode,    desc="user/supervisor access type";
   MachineID Requestor      ,    desc="What component request";

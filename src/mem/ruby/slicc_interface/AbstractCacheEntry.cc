@@ -57,6 +57,10 @@ AbstractCacheEntry::AbstractCacheEntry() : ReplaceableEntry()
     m_last_touch_tick = 0;
     m_htmInReadSet = false;
     m_htmInWriteSet = false;
+    refData.valid = false;
+    refData.type = CoherenceRequestType_GETS;
+    refData.proc_id = -1;
+    refData.offset = -1;
 }
 
 AbstractCacheEntry::~AbstractCacheEntry()

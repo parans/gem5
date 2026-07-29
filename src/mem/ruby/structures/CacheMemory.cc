@@ -50,6 +50,7 @@
 #include "debug/RubyStats.hh"
 #include "mem/cache/replacement_policies/weighted_lru_rp.hh"
 #include "mem/ruby/protocol/AccessPermission.hh"
+#include "mem/ruby/protocol/CoherenceRequestType.hh"
 #include "mem/ruby/system/RubySystem.hh"
 
 namespace gem5
@@ -82,6 +83,8 @@ CacheMemory::CacheMemory(const Params &p)
     m_block_size = p.block_size;  // may be 0 at this point. Updated in init()
     m_use_occupancy = dynamic_cast<replacement_policy::WeightedLRU*>(
                                     m_replacementPolicy_ptr) ? true : false;
+    trueSharing = 0;
+    falseSharing = 0;
 }
 
 void
@@ -316,6 +319,10 @@ CacheMemory::allocate(Addr address, AbstractCacheEntry *entry)
             DPRINTF(RubyCache, "Allocate clearing lock for addr: 0x%x\n",
                     address);
             set[i]->m_locked = -1;
+            set[i]->refData.valid = false;
+            set[i]->refData.type = CoherenceRequestType_GETS;
+            set[i]->refData.proc_id = -1;
+            set[i]->refData.offset = -1;
             m_tag_index[address] = i;
             set[i]->setPosition(cacheSet, i);
             set[i]->replacementData = replacement_data[cacheSet][i];
@@ -543,6 +550,79 @@ CacheMemory::isLocked(Addr address, int context)
     DPRINTF(RubyCache, "Testing Lock for addr: %#llx cur %d con %d\n",
             address, entry->m_locked, context);
     return entry->isLocked(context);
+}
+
+void
+CacheMemory::calculateTFSharing(Addr line_addr, Addr physical_addr,
+                                CoherenceRequestType type, MachineID mid,
+                                AbstractCacheEntry* entry)
+{
+    if (entry == nullptr) {
+        return;
+    }
+
+    const int offset = physical_addr - line_addr;
+    if (!entry->refData.valid) {
+        entry->refData.valid = true;
+        entry->refData.type = type;
+        entry->refData.proc_id = mid.num;
+        entry->refData.offset = offset;
+        return;
+    }
+
+    switch (type) {
+      case CoherenceRequestType_GET_INSTR:
+      case CoherenceRequestType_GETS:
+        if (entry->refData.type == CoherenceRequestType_GET_INSTR ||
+            entry->refData.type == CoherenceRequestType_GETS) {
+            trueSharing++;
+            entry->refData.offset = offset;
+            entry->refData.proc_id = mid.num;
+        } else {
+            if (entry->refData.offset != offset) {
+                falseSharing++;
+                entry->refData.offset = offset;
+            } else {
+                trueSharing++;
+            }
+            entry->refData.proc_id = mid.num;
+            entry->refData.type = type;
+        }
+        break;
+
+      case CoherenceRequestType_UPGRADE:
+        if (entry->refData.offset != offset) {
+            if (entry->refData.proc_id != mid.num) {
+                falseSharing++;
+                entry->refData.proc_id = mid.num;
+            }
+            entry->refData.offset = offset;
+        } else {
+            if (entry->refData.proc_id != mid.num) {
+                trueSharing++;
+                entry->refData.proc_id = mid.num;
+            }
+        }
+        entry->refData.type = type;
+        break;
+
+      case CoherenceRequestType_PUTX:
+      case CoherenceRequestType_INV:
+        entry->refData.valid = false;
+        entry->refData.proc_id = -1;
+        entry->refData.offset = -1;
+        break;
+
+      case CoherenceRequestType_GETX:
+        entry->refData.valid = true;
+        entry->refData.type = CoherenceRequestType_GETX;
+        entry->refData.proc_id = mid.num;
+        entry->refData.offset = offset;
+        break;
+
+      default:
+        break;
+    }
 }
 
 CacheMemory::

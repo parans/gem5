@@ -52,6 +52,7 @@
 #include "mem/ruby/common/Address.hh"
 #include "mem/ruby/common/DataBlock.hh"
 #include "mem/ruby/protocol/AccessPermission.hh"
+#include "mem/ruby/protocol/CoherenceRequestType.hh"
 
 namespace gem5
 {
@@ -60,6 +61,14 @@ namespace ruby
 {
 
 class RubySystem;
+
+struct LineRefData
+{
+    bool valid = false;
+    CoherenceRequestType type;
+    int proc_id = -1;
+    int offset = -1;
+};
 
 class AbstractCacheEntry : public ReplaceableEntry
 {
@@ -122,6 +131,9 @@ class AbstractCacheEntry : public ReplaceableEntry
     bool getInHtmReadSet() const;
     bool getInHtmWriteSet() const;
     virtual void invalidateEntry() {}
+
+    // Metadata used by sharing-analysis experiments.
+    LineRefData refData;
 
   private:
     // hardware transactional memory
