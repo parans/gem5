@@ -61,6 +61,14 @@ namespace ruby
 
 class RubySystem;
 
+struct LineRefData
+{
+    bool valid = false;
+    int type = 0;  // CoherenceRequestType stored as int
+    int proc_id = -1;
+    int offset = -1;
+};
+
 class AbstractCacheEntry : public ReplaceableEntry
 {
   private:
@@ -122,6 +130,9 @@ class AbstractCacheEntry : public ReplaceableEntry
     bool getInHtmReadSet() const;
     bool getInHtmWriteSet() const;
     virtual void invalidateEntry() {}
+
+    // Metadata used by sharing-analysis experiments.
+    LineRefData refData;
 
   private:
     // hardware transactional memory

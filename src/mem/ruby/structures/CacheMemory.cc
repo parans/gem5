@@ -316,6 +316,10 @@ CacheMemory::allocate(Addr address, AbstractCacheEntry *entry)
             DPRINTF(RubyCache, "Allocate clearing lock for addr: 0x%x\n",
                     address);
             set[i]->m_locked = -1;
+            set[i]->refData.valid = false;
+            set[i]->refData.type = 0;
+            set[i]->refData.proc_id = -1;
+            set[i]->refData.offset = -1;
             m_tag_index[address] = i;
             set[i]->setPosition(cacheSet, i);
             set[i]->replacementData = replacement_data[cacheSet][i];
@@ -545,6 +549,87 @@ CacheMemory::isLocked(Addr address, int context)
     return entry->isLocked(context);
 }
 
+// Estimates true/false sharing as observed through the L2 sharer semantics.
+// It is invoked only on transitions that touch the L2 sharer set: a write
+// that invalidates existing sharers of a shared line (GETX/UPGRADE on SS),
+// and a read that adds a new sharer (GETS/GET_INSTR). Classification is
+// deliberately deferred to these sharer-visible events rather than the
+// invalidating request itself, so a coherence cost is counted only when it is
+// actually realized by a re-reference.
+//
+// Consequence: purely exclusive write-vs-write ping-pong (a line held
+// Modified in one L1 and forwarded owner-to-owner via successive GETX) never
+// enters the shared state and is intentionally NOT counted. Such lines are
+// almost always eventually read by another core, at which point they drain
+// into the shared state and get accounted for here.
+void
+CacheMemory::calculateTFSharing(Addr line_addr, Addr physical_addr,
+                                int type, MachineID mid)
+{
+    AbstractCacheEntry* entry = lookup(line_addr);
+    if (entry == nullptr) {
+        return;
+    }
+
+    const int offset = physical_addr - line_addr;
+    if (!entry->refData.valid) {
+        entry->refData.valid = true;
+        entry->refData.type = type;
+        entry->refData.proc_id = mid.num;
+        entry->refData.offset = offset;
+        return;
+    }
+
+    // CoherenceRequestType enum values (protocol-specific, using common values):
+    // GETX=0, UPGRADE=1, GETS=2, GET_INSTR=3, INV=4, PUTX=5
+    const int GETX = 0;
+    const int UPGRADE = 1;
+    const int GETS = 2;
+    const int GET_INSTR = 3;
+    const int INV = 4;
+    const int PUTX = 5;
+
+    if (type == GET_INSTR || type == GETS) {
+        if (entry->refData.type == GET_INSTR || entry->refData.type == GETS) {
+            cacheMemoryStats.trueSharing++;
+            entry->refData.offset = offset;
+            entry->refData.proc_id = mid.num;
+        } else {
+            if (entry->refData.offset != offset) {
+                cacheMemoryStats.falseSharing++;
+                entry->refData.offset = offset;
+            } else {
+                cacheMemoryStats.trueSharing++;
+            }
+            entry->refData.proc_id = mid.num;
+            entry->refData.type = type;
+        }
+    } else if (type == UPGRADE) {
+        if (entry->refData.offset != offset) {
+            if (entry->refData.proc_id != mid.num) {
+                cacheMemoryStats.falseSharing++;
+                entry->refData.proc_id = mid.num;
+            }
+            entry->refData.offset = offset;
+        } else {
+            if (entry->refData.proc_id != mid.num) {
+                cacheMemoryStats.trueSharing++;
+                entry->refData.proc_id = mid.num;
+            }
+        }
+        entry->refData.type = type;
+    } else if (type == PUTX || type == INV) {
+        entry->refData.valid = false;
+        entry->refData.proc_id = -1;
+        entry->refData.offset = -1;
+    } else if (type == GETX) {
+        entry->refData.valid = true;
+        entry->refData.type = type;
+        entry->refData.proc_id = mid.num;
+        entry->refData.offset = offset;
+    }
+}
+
 CacheMemory::
 CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
     : statistics::Group(parent),
@@ -571,6 +656,10 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
       ADD_STAT(m_prefetch_misses, "Number of cache prefetch misses"),
       ADD_STAT(m_prefetch_accesses, "Number of cache prefetch accesses",
                m_prefetch_hits + m_prefetch_misses),
+      ADD_STAT(trueSharing, "Number of true-sharing events detected in this "
+                            "L2 cache (aggregated across all cache lines)"),
+      ADD_STAT(falseSharing, "Number of false-sharing events detected in this "
+                             "L2 cache (aggregated across all cache lines)"),
       ADD_STAT(m_accessModeType, "")
 {
     numDataArrayReads
@@ -624,6 +713,12 @@ CacheMemoryStats::CacheMemoryStats(statistics::Group *parent)
         .flags(statistics::nozero);
 
     m_prefetch_accesses
+        .flags(statistics::nozero);
+
+    trueSharing
+        .flags(statistics::nozero);
+
+    falseSharing
         .flags(statistics::nozero);
 
     m_accessModeType

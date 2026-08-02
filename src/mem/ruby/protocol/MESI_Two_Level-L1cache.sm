@@ -587,6 +587,7 @@ machine(MachineType:L1Cache, "MESI Directory L1 Cache CMP")
     peek(mandatoryQueue_in, RubyRequest) {
       enqueue(requestL1Network_out, RequestMsg, l1_request_latency) {
         out_msg.addr := address;
+        out_msg.PhysicalAddress := in_msg.PhysicalAddress;
         out_msg.Type := CoherenceRequestType:GETS;
         out_msg.Requestor := machineID;
         out_msg.Destination.add(mapAddressToRange(address, MachineType:L2Cache,
@@ -604,6 +605,7 @@ machine(MachineType:L1Cache, "MESI Directory L1 Cache CMP")
     peek(optionalQueue_in, RubyRequest) {
       enqueue(requestL1Network_out, RequestMsg, l1_request_latency) {
         out_msg.addr := address;
+        out_msg.PhysicalAddress := address;
         out_msg.Type := CoherenceRequestType:GETS;
         out_msg.Requestor := machineID;
         out_msg.Destination.add(mapAddressToRange(address, MachineType:L2Cache,
@@ -621,6 +623,7 @@ machine(MachineType:L1Cache, "MESI Directory L1 Cache CMP")
     peek(mandatoryQueue_in, RubyRequest) {
       enqueue(requestL1Network_out, RequestMsg, l1_request_latency) {
         out_msg.addr := address;
+        out_msg.PhysicalAddress := in_msg.PhysicalAddress;
         out_msg.Type := CoherenceRequestType:GET_INSTR;
         out_msg.Requestor := machineID;
         out_msg.Destination.add(mapAddressToRange(address, MachineType:L2Cache,
@@ -639,6 +642,7 @@ machine(MachineType:L1Cache, "MESI Directory L1 Cache CMP")
       peek(optionalQueue_in, RubyRequest) {
           enqueue(requestL1Network_out, RequestMsg, l1_request_latency) {
               out_msg.addr := address;
+              out_msg.PhysicalAddress := address;
               out_msg.Type := CoherenceRequestType:GET_INSTR;
               out_msg.Requestor := machineID;
               out_msg.Destination.add(
@@ -658,6 +662,7 @@ machine(MachineType:L1Cache, "MESI Directory L1 Cache CMP")
     peek(mandatoryQueue_in, RubyRequest) {
       enqueue(requestL1Network_out, RequestMsg, l1_request_latency) {
         out_msg.addr := address;
+        out_msg.PhysicalAddress := in_msg.PhysicalAddress;
         out_msg.Type := CoherenceRequestType:GETX;
         out_msg.Requestor := machineID;
         DPRINTF(RubySlicc, "%s\n", machineID);
@@ -676,6 +681,7 @@ machine(MachineType:L1Cache, "MESI Directory L1 Cache CMP")
       peek(optionalQueue_in, RubyRequest) {
           enqueue(requestL1Network_out, RequestMsg, l1_request_latency) {
               out_msg.addr := address;
+              out_msg.PhysicalAddress := address;
               out_msg.Type := CoherenceRequestType:GETX;
               out_msg.Requestor := machineID;
               DPRINTF(RubySlicc, "%s\n", machineID);
@@ -696,6 +702,7 @@ machine(MachineType:L1Cache, "MESI Directory L1 Cache CMP")
     peek(mandatoryQueue_in, RubyRequest) {
       enqueue(requestL1Network_out, RequestMsg,  l1_request_latency) {
         out_msg.addr := address;
+        out_msg.PhysicalAddress := in_msg.PhysicalAddress;
         out_msg.Type := CoherenceRequestType:UPGRADE;
         out_msg.Requestor := machineID;
         out_msg.Destination.add(mapAddressToRange(address, MachineType:L2Cache,

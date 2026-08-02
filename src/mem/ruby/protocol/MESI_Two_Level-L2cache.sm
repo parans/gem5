@@ -641,6 +641,10 @@ machine(MachineType:L2Cache, "MESI Directory L2 Cache CMP")
         out_msg.Destination.remove(in_msg.Requestor);
         out_msg.MessageSize := MessageSizeType:Request_Control;
       }
+      DPRINTF(RubySlicc, "TFSharing check\n");
+      L2cache.calculateTFSharing(in_msg.addr, in_msg.PhysicalAddress,
+                                 static_cast(int, "value", in_msg.Type),
+                                 in_msg.Requestor);
     }
   }
 
@@ -859,6 +863,9 @@ machine(MachineType:L2Cache, "MESI Directory L2 Cache CMP")
     peek(L1RequestL2Network_in, RequestMsg) {
       assert(is_valid(cache_entry));
       addSharer(address, in_msg.Requestor, cache_entry);
+      L2cache.calculateTFSharing(in_msg.addr, in_msg.PhysicalAddress,
+                                 static_cast(int, "value", in_msg.Type),
+                                 in_msg.Requestor);
       APPEND_TRANSITION_COMMENT( cache_entry.Sharers );
     }
   }

@@ -49,6 +49,7 @@
 #include "mem/cache/replacement_policies/base.hh"
 #include "mem/cache/replacement_policies/replaceable_entry.hh"
 #include "mem/ruby/common/DataBlock.hh"
+#include "mem/ruby/common/MachineID.hh"
 #include "mem/ruby/protocol/CacheRequestType.hh"
 #include "mem/ruby/protocol/CacheResourceType.hh"
 #include "mem/ruby/slicc_interface/AbstractCacheEntry.hh"
@@ -129,6 +130,8 @@ class CacheMemory : public SimObject
     void setMRU(Addr addr, int occupancy);
     void setMRU(AbstractCacheEntry* entry);
     int getReplacementWeight(int64_t set, int64_t loc);
+    void calculateTFSharing(Addr line_addr, Addr physical_addr,
+                            int type, MachineID mid);
 
     // Functions for locking and unlocking cache lines corresponding to the
     // provided address.  These are required for supporting atomic memory
@@ -249,6 +252,11 @@ class CacheMemory : public SimObject
           statistics::Scalar m_prefetch_hits;
           statistics::Scalar m_prefetch_misses;
           statistics::Formula m_prefetch_accesses;
+
+          // TFSharing estimator: aggregated across all cache lines of this
+          // L2 CacheMemory instance.
+          statistics::Scalar trueSharing;
+          statistics::Scalar falseSharing;
 
           statistics::Vector m_accessModeType;
       } cacheMemoryStats;
