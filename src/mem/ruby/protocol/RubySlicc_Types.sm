@@ -237,6 +237,9 @@ structure (CacheMemory, external = "yes") {
   void profileDemandMiss();
   void profilePrefetchHit();
   void profilePrefetchMiss();
+
+  // TFSharing estimator - takes int instead of CoherenceRequestType
+  void calculateTFSharing(Addr, Addr, int, MachineID);
 }
 
 structure (WireBuffer, inport="yes", outport="yes", external = "yes") {

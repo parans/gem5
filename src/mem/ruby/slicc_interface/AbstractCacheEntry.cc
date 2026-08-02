@@ -58,7 +58,7 @@ AbstractCacheEntry::AbstractCacheEntry() : ReplaceableEntry()
     m_htmInReadSet = false;
     m_htmInWriteSet = false;
     refData.valid = false;
-    refData.type = CoherenceRequestType_GETS;
+    refData.type = 0;
     refData.proc_id = -1;
     refData.offset = -1;
 }

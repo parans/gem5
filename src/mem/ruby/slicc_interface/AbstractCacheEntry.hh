@@ -52,7 +52,6 @@
 #include "mem/ruby/common/Address.hh"
 #include "mem/ruby/common/DataBlock.hh"
 #include "mem/ruby/protocol/AccessPermission.hh"
-#include "mem/ruby/protocol/CoherenceRequestType.hh"
 
 namespace gem5
 {
@@ -65,7 +64,7 @@ class RubySystem;
 struct LineRefData
 {
     bool valid = false;
-    CoherenceRequestType type;
+    int type = 0;  // CoherenceRequestType stored as int
     int proc_id = -1;
     int offset = -1;
 };
